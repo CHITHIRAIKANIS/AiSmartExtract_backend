@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const cheerio = require('cheerio');
-require('dotenv').config();
+const { SummarizerManager } = require('node-summarizer'); 
 
 const app = express();
 app.use(cors());
@@ -15,20 +15,11 @@ app.post("/api/extract", async (req, res) => {
     const { data: html } = await axios.get(url);
     const $ = cheerio.load(html);
     const pageText = $("body").text();
-    const cleanText = pageText;
-
-    const hfResponse = await fetch("https://api-inference.huggingface.co/models/facebook/bart-large-cnn", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.HUGGINGFACE_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ inputs: cleanText })
-    });
-
-    const result = await hfResponse.json();
-    const summary = result[0]?.summary_text || "Summary not available";
-
+    const cleanText = pageText.replace(/\s+/g, ' ').trim(); // Optional: clean up extra spaces
+    const summarizer = new SummarizerManager(cleanText, 10); // 10 = number of sentences in summary
+    const summaryResult = summarizer.getSummaryByFrequency();
+    const summary = summaryResult.summary || "Summary not available";
+    console.log(summary)
     res.json({ result: `Summary: ${summary}` });
   } catch (err) {
     console.error("Error:", err.message);
